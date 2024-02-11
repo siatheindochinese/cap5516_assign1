@@ -32,11 +32,11 @@ parser.add_argument("--batchsize",
 parser.add_argument("--epochs",
 					type = int,
 					help = 'number of epochs to train',
-					default = 20)
+					default = 50)
 parser.add_argument("--resize",
 					type = int,
 					help = 'size of images to resize to',
-					default = 512)
+					default = 224)
 parser.add_argument("--xflip",
 					type = float,
 					help = 'chance of random horizontal flip for images',
@@ -52,6 +52,9 @@ parser.add_argument("--rotate",
 
 args = parser.parse_args()
 
+#################################
+# Initialize Data Augmentations #
+#################################
 transforms = []
 transforms.append(torchvision.transforms.RandomHorizontalFlip(args.xflip))
 transforms.append(torchvision.transforms.RandomVerticalFlip(args.yflip))
@@ -69,11 +72,9 @@ else:
 #############
 train = XRayDataset(args.data + '/train', transform = transforms)
 val = XRayDataset(args.data + '/val', transform = transforms)
-test = XRayDataset(args.data + '/test', transform = transforms)
 
 train_dataloader = DataLoader(train, batch_size=args.batchsize, shuffle=True)
 val_dataloader = DataLoader(val, batch_size=args.batchsize, shuffle=True)
-test_dataloader = DataLoader(test, batch_size=args.batchsize, shuffle=True)
 
 ################
 # Define Model #
@@ -89,9 +90,13 @@ if args.gpu:
 ####################
 # Training Configs #
 ####################
+ckpt_name = ('weights/'+args.head+'_xflip_'+str(args.xflip)
+			+ '_yflip_'+str(args.yflip)
+			+ '_rot_'+str(args.rotate)
+			+ '.pt')
 loss = nn.BCELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-stopper = EarlyStopper(window = 5, tolerance = 0.01)
+stopper = EarlyStopper(patience = 5, delta = 0, path = ckpt_name)
 
 #################
 # Training Loop #
@@ -110,12 +115,7 @@ for t in range(args.epochs):
     train_losses.append(train_loss)
     val_losses.append(val_loss)
 
-    stop = stopper(val_loss)
+    stop = stopper(val_loss, model)
     if stop:
         break
 print("Done Training!")
-
-##############################
-# Evaluation on Test Dataset #
-##############################
-_ = val_loop(test_dataloader, model, loss, device)
