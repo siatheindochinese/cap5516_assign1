@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torchvision
 from torch.utils.data import Dataset
+from torcheval.metrics.functional import binary_confusion_matrix
 
 class XRayDataset(Dataset):
     def __init__(self, img_dir, transform=None):
@@ -156,6 +157,8 @@ def test_loop(dataloader, model, gpu='cuda'):
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
     correct = 0
+    predlst = []
+    actuallst = []
 
     # Evaluating the model with torch.no_grad() ensures that no gradients are computed during test mode
     # also serves to reduce unnecessary gradient computations and memory usage for tensors with requires_grad=True
@@ -165,7 +168,14 @@ def test_loop(dataloader, model, gpu='cuda'):
             if gpu:
                 X, y = X.to(gpu), y.to(gpu)
             pred = model(X)
-            correct += ((pred.squeeze() > 0.5) == (y == 1)).sum().item()
+            pred = (pred.squeeze() > 0.5).int()
+            actual = (y == 1).int()
+            predlst.append(pred)
+            actuallst.append(actual)
 
-    correct /= size
-    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}% \n")
+    predlst = torch.tensor(predlst)
+    actuallst = torch.tensor(actuallst)
+    cm = binary_confusion_matrix(predlst, actuallst)
+    tp, fn, fp, tn = cm[0,0], cm[0,1], cm[1,0], cm[1,1]
+    correct = (predlst == actuallst).sum().item() / size
+    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}% \n True Positive: {tp} \n False Negative: {fn} \n False Positive: {fp} \n True Negatives: {tn}")

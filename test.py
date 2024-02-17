@@ -21,9 +21,8 @@ parser.add_argument("--data",
 					help = 'path to your data folder, which has \/train, \/val and \/test folders',
 					default = 'data')
 parser.add_argument("--gpu",
-					type = bool,
-					help = 'use gpu for training and inference',
-					default = True)
+					action = 'store_true',
+					help = 'use gpu for training and inference')
 parser.add_argument("--resize",
 					type = int,
 					help = 'size of images to resize to',

@@ -5,6 +5,8 @@ import torchvision
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
+import matplotlib.pyplot as plt
+
 from utils import XRayDataset, EarlyStopper, train_loop, val_loop, retrieve_head
 import configs.base as base_config
 from model import CustomResNet
@@ -14,17 +16,15 @@ parser.add_argument("--head",
 					type = str,
 					help ='name of CNN head you wish to use')
 parser.add_argument("--pretrained",
-					type = bool,
-					help ='use pretrained weights',
-					default = True)
+					action = 'store_true',
+					help ='use pretrained weights')
 parser.add_argument("--data",
 					type = str,
 					help = 'path to your data folder, which has \/train, \/val and \/test folders',
 					default = 'data')
 parser.add_argument("--gpu",
-					type = bool,
-					help = 'use gpu for training and inference',
-					default = True)
+					action = 'store_true',
+					help = 'use gpu for training and inference')
 parser.add_argument("--batchsize",
 					type = int,
 					help = 'size of batches',
@@ -90,13 +90,15 @@ if args.gpu:
 ####################
 # Training Configs #
 ####################
-ckpt_name = ('weights/'+args.head+'_xflip_'+str(args.xflip)
+ckpt_name = (args.head+'_xflip_'+str(args.xflip)
 			+ '_yflip_'+str(args.yflip)
 			+ '_rot_'+str(args.rotate)
 			+ '.pt')
+if args.pretrained:
+	ckpt_name = 'pretrained_'+ ckpt_name
 loss = nn.BCELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-stopper = EarlyStopper(patience = 5, delta = 0, path = ckpt_name)
+stopper = EarlyStopper(patience = 8, delta = 0, path = 'weights/'+ckpt_name)
 
 #################
 # Training Loop #
@@ -106,7 +108,6 @@ train_losses = []
 
 print(f"Epoch 0\n-------------------------------")
 val_loss = val_loop(val_dataloader, model, loss, device)
-val_losses.append(val_loss)
 
 for t in range(args.epochs):
     print(f"Epoch {t+1}\n-------------------------------")
@@ -119,3 +120,12 @@ for t in range(args.epochs):
     if stop:
         break
 print("Done Training!")
+
+###################
+# Save loss plots #
+###################
+epochs = list(range(len(val_losses)))
+plt.plot(epochs, val_losses, label = 'validation loss')
+plt.plot(epochs, train_losses, label = 'train loss')
+plt.legend()
+plt.savefig('plots/' + ckpt_name[:-3] + '.png')

@@ -7,7 +7,7 @@ Install all relevant packages with `pip install -r requirements.txt`.
 Download the XRay pneumonia classification dataset from https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia and extract the \/train, \/test and \/val folder into the \/data folder in this repostory.
 
 ## 2) Training
-Run `python train.py` to train a model. You will need to specify some flags
+Run `python train.py` to train a model. You will need to specify some flags:
 
 - `--head` name of the CNN head you wish to use, either `resnet18`, `resnet34` or `resnet50`.
 - `--pretrained` use ImageNet (v1) pretrained weights for your CNN head.
@@ -25,4 +25,10 @@ All training is done using early stopping. The `EarlyStopper` class can be found
 Training is done on one RTX 4090 with 24GB vRAM. If you have a weaker GPU, please reduce the batch size with `--batchsize`.
 
 ## 3) Testing
-tba
+Run `python test.py` to train a model. You will need to specify some flags:
+
+- `--head` name of the CNN head you wish to use, either `resnet18`, `resnet34` or `resnet50`.
+- `--ckpt` name of weights you wish to load, weights must be located in `weights`.
+- `--data` path to your data folder, by default it is just \/data. Follow Step 1 outlined above.
+- `--gpu` specify whether to use a GPU, by default it uses a GPU.
+- `--resize` specify the dimension of images to resize to (both width and height will be the same), default is 224.
