@@ -175,7 +175,74 @@ def test_loop(dataloader, model, gpu='cuda'):
 
     predlst = torch.tensor(predlst)
     actuallst = torch.tensor(actuallst)
-    cm = binary_confusion_matrix(predlst, actuallst)
-    tp, fn, fp, tn = cm[0,0], cm[0,1], cm[1,0], cm[1,1]
+    
+    normalidx = actuallst == 0
+    pneumoniaidx = actuallst == 1
+    normal_size = len(actuallst[normalidx])
+    pneumonia_size = len(actuallst[pneumoniaidx])
+    
+    correct_normal = (predlst[normalidx] == actuallst[normalidx]).sum().item() / normal_size
+    correct_pneumonia = (predlst[pneumoniaidx] == actuallst[pneumoniaidx]).sum().item() / pneumonia_size
+    
     correct = (predlst == actuallst).sum().item() / size
-    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}% \n True Positive: {tp} \n False Negative: {fn} \n False Positive: {fp} \n True Negatives: {tn}")
+    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}% \n Normal Accuracy: {(100*correct_normal):>0.1f}% \n Pneumonia Accuracy: {(100*correct_pneumonia):>0.1f}%")
+    
+def fail_analysis(dataloader, model, gpu='cuda'):
+    # Set the model to evaluation mode - important for batch normalization and dropout layers
+    # Unnecessary in this situation but added for best practices
+    model.eval()
+    size = len(dataloader.dataset)
+    num_batches = len(dataloader)
+    correct = 0
+    predlst = []
+    actuallst = []
+
+    # Evaluating the model with torch.no_grad() ensures that no gradients are computed during test mode
+    # also serves to reduce unnecessary gradient computations and memory usage for tensors with requires_grad=True
+    with torch.no_grad():
+        for X, y in dataloader:
+            X, y = X.float(), y
+            if gpu:
+                X, y = X.to(gpu), y.to(gpu)
+            pred = model(X)
+            pred = (pred.squeeze() > 0.5).int()
+            actual = (y == 1).int()
+            predlst.append(pred)
+            actuallst.append(actual)
+
+    predlst = torch.tensor(predlst)
+    actuallst = torch.tensor(actuallst)
+    
+    wrongidx = (actuallst != predlst).nonzero().flatten()
+    idx0 = wrongidx[0].item()
+    
+    from torchcam.methods import CAM
+    from torchcam.utils import overlay_mask
+    from torchvision.transforms.functional import to_pil_image
+    import matplotlib.pyplot as plt
+    cam_extractor = CAM(model)
+    
+    ##########################
+    # Visualize idx0 heatmap #
+    ##########################
+    img0, actual0 = dataloader.dataset[idx0]
+    img0_cuda = img0.float().unsqueeze(0).to(gpu)
+    pred0 = model(img0_cuda)
+    activation_map = cam_extractor(0, pred0.unsqueeze(0))
+    print('index:', idx0, ', predicted:', (1 if pred0.item() > 0.5 else 0), ', actual:', actual0)
+    result = overlay_mask(to_pil_image(img0), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
+    plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
+    
+    correctidx = (actuallst == predlst).nonzero().flatten()
+    idx0 = correctidx[0].item()
+    
+    ##########################
+    # Visualize idx0 heatmap #
+    ##########################
+    img0, actual0 = dataloader.dataset[idx0]
+    img0_cuda = img0.float().unsqueeze(0).to(gpu)
+    pred0 = model(img0_cuda)
+    activation_map = cam_extractor(0, pred0.unsqueeze(0))
+    print('index:', idx0, ', predicted:', (1 if pred0.item() > 0.5 else 0), ', actual:', actual0)
+    result = overlay_mask(to_pil_image(img0), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
+    plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
