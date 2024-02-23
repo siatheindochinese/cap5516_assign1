@@ -27,6 +27,8 @@ All training is done using early stopping. The `EarlyStopper` class can be found
 
 Training is done on one RTX 4090 with 24GB vRAM. If you have a weaker GPU, please reduce the batch size with `--batchsize`.
 
+All trained weights can be downloaded from `https://drive.google.com/drive/folders/1GYiqLQYXoqg-g_Ql0k4A6Sb3i3rBwya5` if you do not wish to train all models from scratch.
+
 ## 3) Testing
 Run `python test.py` to train a model. You will need to specify some flags:
 
